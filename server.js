@@ -60,6 +60,17 @@ async function initializeSampleData() {
   }
 }
 
+// ✅ GET /lessons - Get all lessons (REQUIREMENT)
+app.get('/lessons', async (req, res) => {
+  try {
+    const lessons = await db.collection('lessons').find({}).toArray();
+    res.json(lessons);
+  } catch (error) {
+    console.error('Error fetching lessons:', error);
+    res.status(500).json({ error: 'Failed to fetch lessons' });
+  }
+});
+
 // Update server startup to connect to database first
 connectToDatabase().then(() => {
   app.listen(PORT, () => {
