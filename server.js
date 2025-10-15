@@ -1,6 +1,8 @@
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -10,6 +12,22 @@ const MONGODB_URI = process.env.MONGODB_URI;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// ✅ Logger Middleware (REQUIREMENT)
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
+// ✅ Static File Middleware (REQUIREMENT)
+app.use('/images', express.static(path.join(__dirname, 'public/images')));
+app.use('/images', (req, res, next) => {
+  const imagePath = path.join(__dirname, 'public/images', req.path);
+  if (!fs.existsSync(imagePath)) {
+    return res.status(404).json({ error: 'Image not found' });
+  }
+  next();
+});
 
 // MongoDB connection
 let db;
