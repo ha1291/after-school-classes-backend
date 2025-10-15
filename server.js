@@ -145,6 +145,47 @@ app.post('/orders', async (req, res) => {
   }
 });
 
+// ✅ PUT /lessons/:id - Update lesson spaces (REQUIREMENT)
+app.put('/lessons/:id', async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    const { spaces, subject, location, price } = req.body;
+    
+    // Validate lesson ID
+    if (!ObjectId.isValid(lessonId)) {
+      return res.status(400).json({ error: 'Invalid lesson ID' });
+    }
+    
+    // Build update object
+    const updateFields = {};
+    if (spaces !== undefined) updateFields.spaces = spaces;
+    if (subject !== undefined) updateFields.subject = subject;
+    if (location !== undefined) updateFields.location = location;
+    if (price !== undefined) updateFields.price = price;
+    
+    if (Object.keys(updateFields).length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    const result = await db.collection('lessons').updateOne(
+      { _id: new ObjectId(lessonId) },
+      { $set: updateFields }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Lesson not found' });
+    }
+    
+    res.json({ 
+      message: 'Lesson updated successfully',
+      updatedFields: updateFields
+    });
+  } catch (error) {
+    console.error('Error updating lesson:', error);
+    res.status(500).json({ error: 'Failed to update lesson' });
+  }
+});
+
 // Update server startup to connect to database first
 connectToDatabase().then(() => {
   app.listen(PORT, () => {
