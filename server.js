@@ -186,6 +186,46 @@ app.put('/lessons/:id', async (req, res) => {
   }
 });
 
+// ✅ GET /search - Search lessons (REQUIREMENT - Challenge)
+app.get('/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q) {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+    
+    const searchRegex = new RegExp(q, 'i');
+    
+    // First, search text fields (subject and location)
+    const textResults = await db.collection('lessons').find({
+      $or: [
+        { subject: searchRegex },
+        { location: searchRegex }
+      ]
+    }).toArray();
+    
+    // Then, search numeric fields (price and spaces)
+    const numericResults = await db.collection('lessons').find({
+      $or: [
+        { price: isNaN(q) ? -1 : parseInt(q) }, // Convert query to number if possible
+        { spaces: isNaN(q) ? -1 : parseInt(q) } // Convert query to number if possible
+      ]
+    }).toArray();
+    
+    // Combine and remove duplicates
+    const allResults = [...textResults, ...numericResults];
+    const uniqueResults = allResults.filter((lesson, index, self) => 
+      index === self.findIndex(l => l._id.toString() === lesson._id.toString())
+    );
+    
+    res.json(uniqueResults);
+  } catch (error) {
+    console.error('Error searching lessons:', error);
+    res.status(500).json({ error: 'Failed to search lessons' });
+  }
+});
+
 // Update server startup to connect to database first
 connectToDatabase().then(() => {
   app.listen(PORT, () => {
