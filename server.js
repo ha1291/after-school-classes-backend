@@ -71,6 +71,80 @@ app.get('/lessons', async (req, res) => {
   }
 });
 
+// ✅ POST /orders - Save a new order (REQUIREMENT)
+app.post('/orders', async (req, res) => {
+  try {
+    const { name, phone, lessonIds } = req.body;
+    
+    // Validate required fields
+    if (!name || !phone || !lessonIds || !Array.isArray(lessonIds)) {
+      return res.status(400).json({ error: 'Name, phone, and lessonIds array are required' });
+    }
+
+    // Validate that lessonIds array is not empty
+    if (lessonIds.length === 0) {
+      return res.status(400).json({ error: 'At least one lesson must be selected' });
+    }
+    
+    // Validate name (letters only) and phone (numbers only)
+    const nameRegex = /^[A-Za-z\s]+$/;
+    const phoneRegex = /^\d+$/;
+    
+    if (!nameRegex.test(name)) {
+      return res.status(400).json({ error: 'Name must contain letters only' });
+    }
+    
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({ error: 'Phone must contain numbers only' });
+    }
+
+    // Validate that all lesson IDs exist in the database
+    const validLessons = [];
+    for (const lessonId of lessonIds) {
+      if (!ObjectId.isValid(lessonId)) {
+        return res.status(400).json({ error: `Invalid lesson ID format: ${lessonId}` });
+      }
+      
+      const lesson = await db.collection('lessons').findOne({ _id: new ObjectId(lessonId) });
+      if (!lesson) {
+        return res.status(404).json({ error: `Lesson not found with ID: ${lessonId}` });
+      }
+      
+      // Also check if the lesson has available spaces
+      if (lesson.spaces < 1) {
+        return res.status(400).json({ error: `No spaces available for lesson: ${lesson.subject}` });
+      }
+      
+      validLessons.push(lesson);
+    }
+    
+    // Create order document
+    const order = {
+      name,
+      phone,
+      lessonIds: lessonIds.map(id => new ObjectId(id)),
+      lessonNames: validLessons.map(lesson => lesson.subject),
+      orderDate: new Date()
+    };
+    
+    // Insert order into database
+    const result = await db.collection('orders').insertOne(order);
+    
+    res.status(201).json({ 
+      message: 'Order created successfully', 
+      orderId: result.insertedId,
+      lessons: validLessons.map(lesson => ({
+        subject: lesson.subject,
+        location: lesson.location,
+        price: lesson.price
+      }))
+    });
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: 'Failed to create order' });
+  }
+});
+
 // Update server startup to connect to database first
 connectToDatabase().then(() => {
   app.listen(PORT, () => {
