@@ -36,4 +36,10 @@ Node.js/Express.js REST API backend with MongoDB Atlas integration for managing 
 1. **Clone the repository**
    ```bash
    git clone https://github.com/ha1291/after-school-classes-backend.git
-   
+
+
+## 👨‍💻 Developer
+
+Hussain - BSC Computer Science Year 3 
+Student ID: M00988094  
+CST3144 Full Stack Development Assignment
