@@ -113,6 +113,29 @@ async function initializeSampleData() {
 }
 
 // ======================
+// ROOT ROUTE
+// ======================
+
+// Root route - Welcome message and API documentation
+app.get('/', (req, res) => {
+  res.json({ 
+    message: '🎓 After School Classes API is running!',
+    version: '1.0.0',
+    deployed: true,
+    environment: process.env.NODE_ENV || 'development',
+    endpoints: {
+      lessons: 'GET /lessons - Get all lessons',
+      orders: 'POST /orders - Create a new order',
+      update_lesson: 'PUT /lessons/:id - Update lesson attributes',
+      search: 'GET /search?q=:query - Search lessons',
+      images: 'GET /images/:filename - Serve lesson images'
+    },
+    documentation: 'See README.md for detailed API documentation',
+    repository: 'https://github.com/ha1291/after-school-classes-backend'
+  });
+});
+
+// ======================
 // REST API ENDPOINTS
 // ======================
 
