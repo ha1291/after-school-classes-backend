@@ -37,6 +37,13 @@ Node.js/Express.js REST API backend with MongoDB Atlas integration for managing 
    ```bash
    git clone https://github.com/ha1291/after-school-classes-backend.git
 
+2. **Install Dependencies**
+npm install
+
+3. **Configure Environment Variables**
+- Rename .env.example to .env
+- Update the MONGODB_URI with your actual MongoDB Atlas connection string
+- Important: The .env file is gitignored for security
 
 ## 👨‍💻 Developer
 
