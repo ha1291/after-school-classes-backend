@@ -1,3 +1,10 @@
+/**
+ * After School Classes Backend API
+ * Node.js/Express.js REST API with MongoDB Atlas integration
+ * BSC Computer Science - CST3144 Full Stack Development Assignment
+ */
+
+// Import required modules
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const cors = require('cors');
@@ -5,21 +12,36 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
+// Initialize Express application
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
-// Middleware
+// ======================
+// MIDDLEWARE SETUP
+// ======================
+
+// Enable CORS for cross-origin requests (front-end communication)
 app.use(cors());
+
+// Parse JSON request bodies
 app.use(express.json());
 
-// ✅ Logger Middleware (REQUIREMENT)
+/**
+ * Logger Middleware - Assignment Requirement
+ * Logs all incoming requests with timestamp, method, and URL
+ * Outputs to server console for inspection
+ */
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
 });
 
-// ✅ Static File Middleware (REQUIREMENT)
+/**
+ * Static File Middleware - Assignment Requirement
+ * Serves lesson images from public/images directory
+ * Returns 404 error with JSON message if image not found
+ */
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 app.use('/images', (req, res, next) => {
   const imagePath = path.join(__dirname, 'public/images', req.path);
@@ -29,10 +51,18 @@ app.use('/images', (req, res, next) => {
   next();
 });
 
-// MongoDB connection
-let db;
-let client;
+// ======================
+// DATABASE CONNECTION
+// ======================
 
+let db;  // Database instance
+let client;  // MongoDB client
+
+/**
+ * Connect to MongoDB Atlas database
+ * Uses connection string from environment variables
+ * Initializes sample data if collections are empty
+ */
 async function connectToDatabase() {
   try {
     client = new MongoClient(MONGODB_URI);
@@ -48,7 +78,11 @@ async function connectToDatabase() {
   }
 }
 
-// Initialize sample lessons data
+/**
+ * Initialize sample lessons data - Assignment Requirement
+ * Creates 10 lessons with 5 spaces each if collection is empty
+ * Includes subject, location, price, spaces, and image fields
+ */
 async function initializeSampleData() {
   try {
     const lessonsCollection = db.collection('lessons');
@@ -78,7 +112,15 @@ async function initializeSampleData() {
   }
 }
 
-// ✅ GET /lessons - Get all lessons (REQUIREMENT)
+// ======================
+// REST API ENDPOINTS
+// ======================
+
+/**
+ * GET /lessons - Assignment Requirement
+ * Retrieves all lessons from the database
+ * Used by front-end to display lesson list
+ */
 app.get('/lessons', async (req, res) => {
   try {
     const lessons = await db.collection('lessons').find({}).toArray();
@@ -89,7 +131,11 @@ app.get('/lessons', async (req, res) => {
   }
 });
 
-// ✅ POST /orders - Save a new order (REQUIREMENT)
+/**
+ * POST /orders - Assignment Requirement
+ * Creates a new order with validation
+ * Validates: name (letters only), phone (numbers only), lesson existence, available spaces
+ */
 app.post('/orders', async (req, res) => {
   try {
     const { name, phone, lessonIds } = req.body;
@@ -104,7 +150,7 @@ app.post('/orders', async (req, res) => {
       return res.status(400).json({ error: 'At least one lesson must be selected' });
     }
     
-    // Validate name (letters only) and phone (numbers only)
+    // Validate name (letters only) and phone (numbers only) - Assignment Requirement
     const nameRegex = /^[A-Za-z\s]+$/;
     const phoneRegex = /^\d+$/;
     
@@ -116,7 +162,7 @@ app.post('/orders', async (req, res) => {
       return res.status(400).json({ error: 'Phone must contain numbers only' });
     }
 
-    // Validate that all lesson IDs exist in the database
+    // Validate that all lesson IDs exist and have available spaces
     const validLessons = [];
     for (const lessonId of lessonIds) {
       if (!ObjectId.isValid(lessonId)) {
@@ -128,7 +174,7 @@ app.post('/orders', async (req, res) => {
         return res.status(404).json({ error: `Lesson not found with ID: ${lessonId}` });
       }
       
-      // Also check if the lesson has available spaces
+      // Check if the lesson has available spaces
       if (lesson.spaces < 1) {
         return res.status(400).json({ error: `No spaces available for lesson: ${lesson.subject}` });
       }
@@ -136,7 +182,7 @@ app.post('/orders', async (req, res) => {
       validLessons.push(lesson);
     }
     
-    // Create order document
+    // Create order document for database
     const order = {
       name,
       phone,
@@ -163,33 +209,40 @@ app.post('/orders', async (req, res) => {
   }
 });
 
-// ✅ PUT /lessons/:id - Update lesson spaces (REQUIREMENT)
+/**
+ * PUT /lessons/:id - Assignment Requirement
+ * Updates lesson attributes (spaces, price, location, subject)
+ * Can update any attribute to any value (not just increment/decrement)
+ */
 app.put('/lessons/:id', async (req, res) => {
   try {
     const lessonId = req.params.id;
     const { spaces, subject, location, price } = req.body;
     
-    // Validate lesson ID
+    // Validate lesson ID format
     if (!ObjectId.isValid(lessonId)) {
       return res.status(400).json({ error: 'Invalid lesson ID' });
     }
     
-    // Build update object
+    // Build update object with provided fields
     const updateFields = {};
     if (spaces !== undefined) updateFields.spaces = spaces;
     if (subject !== undefined) updateFields.subject = subject;
     if (location !== undefined) updateFields.location = location;
     if (price !== undefined) updateFields.price = price;
     
+    // Ensure at least one field is provided for update
     if (Object.keys(updateFields).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
     
+    // Update lesson in database
     const result = await db.collection('lessons').updateOne(
       { _id: new ObjectId(lessonId) },
       { $set: updateFields }
     );
     
+    // Check if lesson was found and updated
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Lesson not found' });
     }
@@ -204,18 +257,23 @@ app.put('/lessons/:id', async (req, res) => {
   }
 });
 
-// ✅ GET /search - Search lessons (REQUIREMENT - Challenge)
+/**
+ * GET /search - Assignment Challenge Requirement
+ * Full-text search across lesson fields (subject, location, price, spaces)
+ * Implements Approach 2 for higher marks (back-end search)
+ */
 app.get('/search', async (req, res) => {
   try {
     const { q } = req.query;
     
+    // Validate search query parameter
     if (!q) {
       return res.status(400).json({ error: 'Search query is required' });
     }
     
-    const searchRegex = new RegExp(q, 'i');
+    const searchRegex = new RegExp(q, 'i'); // Case-insensitive regex
     
-    // First, search text fields (subject and location)
+    // Search text fields (subject and location)
     const textResults = await db.collection('lessons').find({
       $or: [
         { subject: searchRegex },
@@ -223,15 +281,15 @@ app.get('/search', async (req, res) => {
       ]
     }).toArray();
     
-    // Then, search numeric fields (price and spaces)
+    // Search numeric fields (price and spaces) by converting to numbers
     const numericResults = await db.collection('lessons').find({
       $or: [
-        { price: isNaN(q) ? -1 : parseInt(q) }, // Convert query to number if possible
-        { spaces: isNaN(q) ? -1 : parseInt(q) } // Convert query to number if possible
+        { price: isNaN(q) ? -1 : parseInt(q) },
+        { spaces: isNaN(q) ? -1 : parseInt(q) }
       ]
     }).toArray();
     
-    // Combine and remove duplicates
+    // Combine results and remove duplicates
     const allResults = [...textResults, ...numericResults];
     const uniqueResults = allResults.filter((lesson, index, self) => 
       index === self.findIndex(l => l._id.toString() === lesson._id.toString())
@@ -244,14 +302,23 @@ app.get('/search', async (req, res) => {
   }
 });
 
-// Update server startup to connect to database first
+// ======================
+// SERVER STARTUP
+// ======================
+
+/**
+ * Start server after successful database connection
+ */
 connectToDatabase().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Server is running on port ${PORT}`);
+    console.log(`📚 API endpoints available at http://localhost:${PORT}`);
   });
 });
 
-// Graceful shutdown
+/**
+ * Graceful shutdown - close database connection on process termination
+ */
 process.on('SIGINT', async () => {
   if (client) {
     await client.close();
